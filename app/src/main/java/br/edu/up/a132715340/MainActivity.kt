@@ -72,9 +72,12 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (snapshot != null) {
+                        // Atualiza a lista completamente com base nos documentos do snapshot
                         entries = snapshot.documents.map { document ->
-                            // Converte os DocumentSnapshot para a nossa data class Entry
-                            Entry(id = document.id, content = document.getString("content") ?: "Sem conteúdo")
+                            Entry(
+                                id = document.id,
+                                content = document.getString("content") ?: "Sem conteúdo"
+                            )
                         }
                     }
                 }
@@ -101,17 +104,10 @@ class MainActivity : ComponentActivity() {
                     if (userInput.isNotEmpty()) {
                         if (editingEntry != null) {
                             // Atualiza o dado existente no Firestore
-                            updateInFirestore(editingEntry!!, userInput) {
-                                // Atualiza a lista local após editar
-                                entries = entries.map { entry ->
-                                    if (entry.id == editingEntry?.id) entry.copy(content = userInput) else entry
-                                }
-                            }
+                            updateInFirestore(editingEntry!!, userInput)
                         } else {
                             // Salva um novo dado no Firestore
-                            saveToFirestore(userInput) { newEntry ->
-                                entries = entries + newEntry
-                            }
+                            saveToFirestore(userInput)
                         }
                         userInput = "" // Limpa o campo de texto
                         editingEntry = null // Limpa o estado de edição
@@ -150,7 +146,6 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         deleteFromFirestore(entry.id)
-                                        entries = entries.filterNot { it.id == entry.id } // Atualiza a lista removendo o item excluído
                                     },
                                     modifier = Modifier.padding(start = 8.dp)
                                 ) {
@@ -167,18 +162,15 @@ class MainActivity : ComponentActivity() {
     }
 
     // Função para salvar dados no Firestore
-    private fun saveToFirestore(data: String, onDataSaved: (Entry) -> Unit) {
+    private fun saveToFirestore(data: String) {
         val entry = hashMapOf(
             "content" to data,
             "timestamp" to System.currentTimeMillis()
         )
 
-        firestore.collection("entries") // Coleção chamada "entries"
+        firestore.collection("entries")
             .add(entry)
-            .addOnSuccessListener { documentReference ->
-                // Agora que o Firestore retornou o ID, criamos o objeto Entry
-                val newEntry = Entry(id = documentReference.id, content = data)
-                onDataSaved(newEntry) // Chama o callback para atualizar a lista local
+            .addOnSuccessListener {
                 Toast.makeText(this, "Dados salvos com sucesso!", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener { e ->
@@ -187,12 +179,11 @@ class MainActivity : ComponentActivity() {
     }
 
     // Função para atualizar dados no Firestore
-    private fun updateInFirestore(entry: Entry, newContent: String, onDataUpdated: () -> Unit) {
+    private fun updateInFirestore(entry: Entry, newContent: String) {
         firestore.collection("entries").document(entry.id)
             .update("content", newContent)
             .addOnSuccessListener {
                 Toast.makeText(this, "Dados atualizados com sucesso!", Toast.LENGTH_SHORT).show()
-                onDataUpdated() // Chama o callback para atualizar a lista local
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Erro ao atualizar os dados: ${e.message}", Toast.LENGTH_SHORT).show()
